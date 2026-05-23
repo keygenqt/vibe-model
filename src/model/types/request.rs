@@ -1,0 +1,80 @@
+//! Chat completion request types.
+//! OpenAI-compatible request structures.
+
+use serde::Deserialize;
+use serde::Serialize;
+
+/// Chat completion request.
+#[derive(Debug, Deserialize)]
+pub struct ChatCompletionRequest {
+    /// Model name (returned in response).
+    pub model: String,
+    /// Conversation messages.
+    pub messages: Vec<Message>,
+    /// Available tools for function calling.
+    #[serde(default)]
+    pub tools: Option<Vec<Tool>>,
+    /// Tool choice mode.
+    #[serde(default)]
+    pub tool_choice: Option<String>,
+    /// Whether to stream the response.
+    #[serde(default)]
+    pub stream: Option<bool>,
+    /// Sampling temperature.
+    #[serde(default)]
+    pub temperature: Option<f32>,
+    /// Maximum tokens to generate.
+    #[serde(default)]
+    pub max_tokens: Option<u32>,
+}
+
+/// Conversation message.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Message {
+    /// Message role (system, user, assistant, tool).
+    pub role: String,
+    /// Message content.
+    pub content: Option<String>,
+    /// Tool calls from assistant.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
+    /// Tool call result identifier.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+}
+
+/// Available tool definition.
+#[derive(Debug, Deserialize)]
+pub struct Tool {
+    /// Function definition.
+    pub function: FunctionDef,
+}
+
+/// Function definition for a tool.
+#[derive(Debug, Deserialize)]
+pub struct FunctionDef {
+    /// Function name.
+    pub name: String,
+    /// Function description.
+    pub description: Option<String>,
+    /// Function parameters (JSON Schema).
+    pub parameters: Option<serde_json::Value>,
+}
+
+/// Tool call from assistant.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ToolCall {
+    /// Tool call identifier.
+    pub id: String,
+    /// Function call details.
+    pub function: FunctionCall,
+}
+
+/// Function call arguments.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FunctionCall {
+    /// Function name to call.
+    pub name: String,
+    /// Function arguments as JSON string.
+    pub arguments: String,
+}

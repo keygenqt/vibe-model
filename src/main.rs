@@ -13,6 +13,7 @@ use crate::configs::app::AppConfig;
 
 mod cli;
 mod configs;
+mod model;
 mod utils;
 
 #[derive(Parser)]
