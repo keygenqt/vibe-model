@@ -125,7 +125,7 @@ impl ServeModel {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let content = serde_json::to_string_pretty(list)?;
+        let content = serde_json::to_string(list)?;
         fs::write(&path, content)?;
         Ok(())
     }

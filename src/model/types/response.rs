@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use crate::model::types::request::Message;
+use crate::model::types::request::{Message, ToolCall};
 
 /// Chat completion response.
 #[derive(Debug, Serialize)]
@@ -80,6 +80,9 @@ pub struct Delta {
     /// Partial content.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
+    /// Partial tool calls.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
 }
 
 impl Default for ChatCompletionResponse {
@@ -90,6 +93,36 @@ impl Default for ChatCompletionResponse {
             created: 0,
             model: "vibe-model".into(),
             choices: vec![],
+            usage: Usage {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+            },
+        }
+    }
+}
+
+impl ChatCompletionResponse {
+    /// Create response from message.
+    pub fn from_message(model: &str, message: Message) -> Self {
+        let has_tool_calls = message.tool_calls.is_some();
+        Self {
+            id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
+            object: "chat.completion".into(),
+            created: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            model: model.into(),
+            choices: vec![Choice {
+                index: 0,
+                message,
+                finish_reason: if has_tool_calls {
+                    "tool_calls".into()
+                } else {
+                    "stop".into()
+                },
+            }],
             usage: Usage {
                 prompt_tokens: 0,
                 completion_tokens: 0,

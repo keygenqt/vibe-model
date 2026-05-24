@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use crate::configs::cluster::ClusterConfig;
+use crate::configs::identity::IdentityConfig;
 use crate::configs::log_level::LogLevel;
 use crate::configs::server::ServerConfig;
 use crate::exit_error;
@@ -29,6 +30,8 @@ pub struct AppConfig {
     pub log_level: LogLevel,
     /// HTTP server settings.
     pub server: ServerConfig,
+    /// Model presentation settings for /v1/models endpoint.
+    pub identity: IdentityConfig,
     /// LLM cluster nodes (local and cloud models).
     pub cluster: Vec<ClusterConfig>,
 }
@@ -40,6 +43,7 @@ impl Default for AppConfig {
             version: constants::CONFIG_VERSION.to_string(),
             log_level: LogLevel::default(),
             server: ServerConfig::default(),
+            identity: IdentityConfig::default(),
             cluster: vec![ClusterConfig::default()],
         }
     }
@@ -138,6 +142,17 @@ impl AppConfig {
                     "HTTP server configuration",
                     "host - Bind address (127.0.0.1 for local only, 0.0.0.0 for all interfaces)",
                     "port - Server port (default: 3000)",
+                ],
+            ),
+            Json5::Commit(
+                "identity",
+                vec![
+                    "Model presentation settings for /v1/models endpoint",
+                    "",
+                    "id - Model identifier shown to clients",
+                    "context_window - Maximum context window in tokens",
+                    "max_tokens - Maximum output tokens",
+                    "capabilities - Model capabilities (code, reasoning, tools, multilingual)",
                 ],
             ),
             Json5::Commit(

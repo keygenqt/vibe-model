@@ -1,7 +1,8 @@
-//! @todo
-//! @todo
+//! Configuration modules for vibe-model.
+//! Provides application, server, cluster, identity, and log level configuration.
 
 pub mod app;
 pub mod cluster;
+pub mod identity;
 pub mod log_level;
 pub mod server;

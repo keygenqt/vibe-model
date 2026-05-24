@@ -3,10 +3,10 @@
 
 use crate::configs::app::AppConfig;
 use crate::model::error::ModelError;
-use crate::model::types::request::ChatCompletionRequest;
-use crate::model::types::request::Message;
+use crate::model::formats;
+use crate::model::types::request::{ChatCompletionRequest, Content, Message};
 use crate::model::types::response::{
-    ChatCompletionChunk, ChatCompletionResponse, Choice, ChoiceDelta, Delta, Usage,
+    ChatCompletionChunk, ChatCompletionResponse, ChoiceDelta, Delta,
 };
 use vibe_cluster::{Cluster, ConnectionParams, Prompt, Provider};
 
@@ -14,39 +14,35 @@ use vibe_cluster::{Cluster, ConnectionParams, Prompt, Provider};
 pub async fn process(
     config: &AppConfig,
     request: &ChatCompletionRequest,
+    user_agent: &str,
 ) -> Result<ChatCompletionResponse, ModelError> {
     log_request_fields(request);
 
-    let cluster = build_cluster(config).map_err(|e| ModelError::internal(&e))?;
+    let raw_prompt = last_user_message(request);
+    let format = formats::detect(user_agent);
+    let prompt_text = format.clean_prompt(&raw_prompt);
+    tracing::trace!("Full prompt:\n{}", prompt_text);
 
-    let prompt_text = last_user_message(request);
+    // Check system questions about the model
+    if let Some(canned) = check_system_question(&prompt_text) {
+        tracing::trace!("System question matched, returning canned response");
+        let message = format.format_message(&canned);
+        return Ok(ChatCompletionResponse::from_message(
+            &request.model,
+            message,
+        ));
+    }
+
+    let cluster = build_cluster(config).map_err(|e| ModelError::internal(&e))?;
 
     cluster
         .call(Prompt::new(prompt_text))
         .await
         .map(|result| {
             let content = result.text.unwrap_or_default();
-            ChatCompletionResponse {
-                id: format!("chatcmpl-{}", uuid::Uuid::new_v4()),
-                object: "chat.completion".into(),
-                created: now_secs(),
-                model: request.model.clone(),
-                choices: vec![Choice {
-                    index: 0,
-                    message: Message {
-                        role: "assistant".into(),
-                        content: Some(content),
-                        tool_calls: None,
-                        tool_call_id: None,
-                    },
-                    finish_reason: "stop".into(),
-                }],
-                usage: Usage {
-                    prompt_tokens: 0,
-                    completion_tokens: 0,
-                    total_tokens: 0,
-                },
-            }
+            tracing::trace!("Full response:\n{}", content);
+            let message = format.format_message(&content);
+            ChatCompletionResponse::from_message(&request.model, message)
         })
         .map_err(|e| ModelError::internal(&e.to_string()))
 }
@@ -55,12 +51,23 @@ pub async fn process(
 pub async fn process_stream(
     config: &AppConfig,
     request: &ChatCompletionRequest,
+    user_agent: &str,
 ) -> Result<Vec<ChatCompletionChunk>, ModelError> {
     log_request_fields(request);
 
-    let cluster = build_cluster(config).map_err(|e| ModelError::internal(&e))?;
+    let raw_prompt = last_user_message(request);
+    let format = formats::detect(user_agent);
+    let prompt_text = format.clean_prompt(&raw_prompt);
+    tracing::trace!("Full stream prompt:\n{}", prompt_text);
 
-    let prompt_text = last_user_message(request);
+    // Check system questions about the model
+    if let Some(canned) = check_system_question(&prompt_text) {
+        tracing::trace!("System question matched, returning canned stream");
+        let message = format.format_message(&canned);
+        return Ok(build_stream_chunks(&request.model, &message));
+    }
+
+    let cluster = build_cluster(config).map_err(|e| ModelError::internal(&e))?;
 
     let result = cluster
         .call(Prompt::new(prompt_text))
@@ -68,32 +75,58 @@ pub async fn process_stream(
         .map_err(|e| ModelError::internal(&e.to_string()))?;
 
     let content = result.text.unwrap_or_default();
+    tracing::trace!("Full stream response:\n{}", content);
+    let message = format.format_message(&content);
+    Ok(build_stream_chunks(&request.model, &message))
+}
+
+/// Build stream chunks from message.
+fn build_stream_chunks(model: &str, message: &Message) -> Vec<ChatCompletionChunk> {
     let id = format!("chatcmpl-{}", uuid::Uuid::new_v4());
     let created = now_secs();
-    let model = request.model.clone();
-
-    // Split content into words for fake streaming
-    let words: Vec<&str> = content.split_whitespace().collect();
     let mut chunks = Vec::new();
 
-    // First chunk with role
-    if !words.is_empty() {
+    // If message has tool_calls, return single chunk with tool_calls
+    if let Some(tool_calls) = &message.tool_calls {
         chunks.push(ChatCompletionChunk {
             id: id.clone(),
             object: "chat.completion.chunk".into(),
             created,
-            model: model.clone(),
+            model: model.into(),
             choices: vec![ChoiceDelta {
                 index: 0,
                 delta: Delta {
                     role: Some("assistant".into()),
                     content: None,
+                    tool_calls: Some(tool_calls.clone()),
+                },
+                finish_reason: Some("tool_calls".into()),
+            }],
+        });
+        return chunks;
+    }
+
+    // Plain text streaming
+    let content = content_to_string(&message.content);
+    let words: Vec<&str> = content.split_whitespace().collect();
+
+    if !words.is_empty() {
+        chunks.push(ChatCompletionChunk {
+            id: id.clone(),
+            object: "chat.completion.chunk".into(),
+            created,
+            model: model.into(),
+            choices: vec![ChoiceDelta {
+                index: 0,
+                delta: Delta {
+                    role: Some("assistant".into()),
+                    content: None,
+                    tool_calls: None,
                 },
                 finish_reason: None,
             }],
         });
 
-        // Content chunks — each word as delta
         for (i, word) in words.iter().enumerate() {
             let partial = if i == 0 {
                 word.to_string()
@@ -104,12 +137,13 @@ pub async fn process_stream(
                 id: id.clone(),
                 object: "chat.completion.chunk".into(),
                 created,
-                model: model.clone(),
+                model: model.into(),
                 choices: vec![ChoiceDelta {
                     index: 0,
                     delta: Delta {
                         role: None,
                         content: Some(partial),
+                        tool_calls: None,
                     },
                     finish_reason: None,
                 }],
@@ -117,23 +151,23 @@ pub async fn process_stream(
         }
     }
 
-    // Final chunk with finish_reason
     chunks.push(ChatCompletionChunk {
-        id: id.clone(),
+        id,
         object: "chat.completion.chunk".into(),
         created,
-        model: model.clone(),
+        model: model.into(),
         choices: vec![ChoiceDelta {
             index: 0,
             delta: Delta {
                 role: None,
                 content: Some(String::new()),
+                tool_calls: None,
             },
             finish_reason: Some("stop".into()),
         }],
     });
 
-    Ok(chunks)
+    chunks
 }
 
 /// Log request fields for debugging.
@@ -171,8 +205,21 @@ fn last_user_message(request: &ChatCompletionRequest) -> String {
         .iter()
         .filter(|m| m.role == "user")
         .last()
-        .map(|m| m.content.clone().unwrap_or_default())
+        .map(|m| content_to_string(&m.content))
         .unwrap_or_default()
+}
+
+/// Convert Content enum to plain string.
+fn content_to_string(content: &Option<Content>) -> String {
+    match content {
+        Some(Content::Text(text)) => text.clone(),
+        Some(Content::Parts(parts)) => parts
+            .iter()
+            .filter_map(|p| p.text.clone())
+            .collect::<Vec<_>>()
+            .join("\n"),
+        None => String::new(),
+    }
 }
 
 /// Current unix timestamp in seconds.
@@ -211,4 +258,38 @@ fn build_cluster(config: &AppConfig) -> Result<Cluster, String> {
         .collect::<Result<Vec<_>, String>>()?;
 
     Cluster::new(connections).map_err(|e| e.to_string())
+}
+
+/// Check if prompt is a system question about the model itself.
+fn check_system_question(prompt: &str) -> Option<String> {
+    let prompt_lower = prompt.to_lowercase();
+    let prompt_clean = prompt_lower
+        .trim()
+        .trim_end_matches(|c: char| c == '?' || c == '!' || c == '.')
+        .trim();
+
+    let system_patterns = [
+        "что ты за модель",
+        "какая ты модель",
+        "кто ты",
+        "как тебя зовут",
+        "что ты такое",
+        "what model are you",
+        "who are you",
+        "what is your name",
+    ];
+
+    if system_patterns
+        .iter()
+        .any(|p| prompt_clean.contains(&p.to_lowercase()))
+    {
+        Some(
+            "Я — vibe-model, OpenAI-совместимое API, которое маршрутизирует запросы через кластер LLM. \
+            Под капотом — vibe-cluster с поддержкой Ollama, DeepSeek, Qwen. \
+            Выбираю лучшую модель под твою задачу."
+                .into(),
+        )
+    } else {
+        None
+    }
 }

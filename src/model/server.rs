@@ -17,6 +17,7 @@ use tower_http::normalize_path::NormalizePathLayer;
 use crate::configs::app::AppConfig;
 use crate::model::handlers;
 use crate::model::state::AppState;
+use crate::print_info;
 
 /// Start vibe-model HTTP server.
 pub async fn run(host: String, port: u16) -> anyhow::Result<()> {
@@ -34,7 +35,7 @@ pub async fn run(host: String, port: u16) -> anyhow::Result<()> {
     let route = format!("{}:{}", host, port);
     let listener = tokio::net::TcpListener::bind(&route).await?;
 
-    tracing::info!("Server started on http://{}", listener.local_addr()?);
+    print_info!("Server started on http://{}", listener.local_addr()?);
 
     let app = ServiceBuilder::new()
         .layer(CorsLayer::permissive())
@@ -50,6 +51,7 @@ pub async fn run(host: String, port: u16) -> anyhow::Result<()> {
 async fn log_requests(request: Request, next: axum::middleware::Next) -> Response {
     let method = request.method().clone();
     let uri = request.uri().clone();
+    tracing::trace!("{} {} - Headers: {:?}", method, uri, request.headers());
     let response = next.run(request).await;
     tracing::info!("{} {} -> {}", method, uri, response.status());
     response

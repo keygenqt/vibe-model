@@ -1960,6 +1960,7 @@ dependencies = [
  "dirs",
  "futures",
  "json5",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",

@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// Chat completion request.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ChatCompletionRequest {
     /// Model name (returned in response).
     pub model: String,
@@ -29,12 +29,12 @@ pub struct ChatCompletionRequest {
 }
 
 /// Conversation message.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Message {
     /// Message role (system, user, assistant, tool).
     pub role: String,
-    /// Message content.
-    pub content: Option<String>,
+    /// Message content (string or array of content parts).
+    pub content: Option<Content>,
     /// Tool calls from assistant.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
@@ -43,15 +43,46 @@ pub struct Message {
     pub tool_call_id: Option<String>,
 }
 
+/// Message content — either a plain string or an array of content parts.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum Content {
+    /// Plain text content.
+    Text(String),
+    /// Array of content parts (text, images, etc.).
+    Parts(Vec<ContentPart>),
+}
+
+/// A content part within a message (text or image).
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ContentPart {
+    /// Part type: "text", "image_url", etc.
+    #[serde(rename = "type")]
+    pub part_type: String,
+    /// Text content (for text parts).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// Image URL (for image parts).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_url: Option<ImageUrl>,
+}
+
+/// Image URL for vision content parts.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ImageUrl {
+    /// Image URL or base64-encoded data.
+    pub url: String,
+}
+
 /// Available tool definition.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct Tool {
     /// Function definition.
     pub function: FunctionDef,
 }
 
 /// Function definition for a tool.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct FunctionDef {
     /// Function name.
     pub name: String,
@@ -62,7 +93,7 @@ pub struct FunctionDef {
 }
 
 /// Tool call from assistant.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ToolCall {
     /// Tool call identifier.
     pub id: String,
@@ -71,7 +102,7 @@ pub struct ToolCall {
 }
 
 /// Function call arguments.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FunctionCall {
     /// Function name to call.
     pub name: String,
