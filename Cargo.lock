@@ -1952,6 +1952,7 @@ name = "vibe-model"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "chrono",
  "clap",

@@ -11,5 +11,4 @@ use crate::configs::app::AppConfig;
 pub struct AppState {
     /// Application configuration.
     pub config: Arc<AppConfig>,
-    // @todo vibe_cluster::Cluster
 }

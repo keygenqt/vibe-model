@@ -1,11 +1,16 @@
 //! Server management commands.
 //! Start, stop, and check vibe-model HTTP server status.
 
+use std::sync::Arc;
+
 use clap::Subcommand;
 
 use crate::configs::app::AppConfig;
-use crate::model::serve::ServeModel;
-use crate::model::server;
+use crate::pipeline::pipeline::Pipeline;
+use crate::providers::openai::provider::OpenAiProvider;
+use crate::providers::provider::Provider;
+use crate::providers::serve::ServeModel;
+use crate::providers::server::ProviderServer;
 
 /// Server management actions.
 #[derive(Subcommand)]
@@ -34,18 +39,21 @@ pub enum ServeAction {
 
 /// Execute serve commands.
 pub async fn run(action: ServeAction) {
-    let config = AppConfig::load().unwrap_or_default();
-
     match action {
         ServeAction::Start { host, port } => {
-            let host = host.unwrap_or(config.server.host);
+            let config = AppConfig::load().unwrap_or_default();
+            let host = host.unwrap_or(config.clone().server.host);
             let port = port.unwrap_or(config.server.port);
 
             let pid = std::process::id();
             let serve = ServeModel::new(pid, &host, port);
             serve.save().ok();
 
-            if let Err(e) = server::run(host.clone(), port).await {
+            let provider: Box<dyn Provider> = Box::new(OpenAiProvider);
+            let pipeline = Arc::new(Pipeline::new(config.clone()));
+            let server = ProviderServer::new(provider, pipeline, host.clone(), port);
+
+            if let Err(e) = server.run().await {
                 serve.stop().ok();
                 eprintln!("Failed to start server: {}", e);
             }

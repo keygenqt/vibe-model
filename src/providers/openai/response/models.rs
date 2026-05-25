@@ -1,10 +1,6 @@
-//! GET /v1/models handler.
-//! Returns available models list.
+//! OpenAI model list response types.
 
-use axum::{Json, extract::State};
 use serde::Serialize;
-
-use crate::model::state::AppState;
 
 /// Model list response.
 #[derive(Debug, Serialize)]
@@ -35,21 +31,4 @@ pub struct ModelInfo {
     /// Model capabilities.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<Vec<String>>,
-}
-
-/// Handle models list request.
-pub async fn get(State(state): State<AppState>) -> Json<ModelsResponse> {
-    let identity = &state.config.identity;
-    Json(ModelsResponse {
-        object: "list".to_string(),
-        data: vec![ModelInfo {
-            id: identity.id.clone(),
-            object: "model".to_string(),
-            created: 0,
-            owned_by: "vibe".to_string(),
-            context_window: Some(identity.context_window),
-            max_tokens: Some(identity.max_tokens),
-            capabilities: Some(identity.capabilities.clone()),
-        }],
-    })
 }
