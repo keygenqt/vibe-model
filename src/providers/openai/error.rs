@@ -1,4 +1,4 @@
-//! OpenAI error response types.
+//! Error response type for OpenAI provider.
 
 use axum::Json;
 use axum::http::StatusCode;
@@ -6,13 +6,13 @@ use axum::response::IntoResponse;
 use axum::response::Response;
 use serde::Serialize;
 
-/// OpenAI error response.
+/// Error response.
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
     pub error: ErrorDetail,
 }
 
-/// Error detail with message and type.
+/// Error detail.
 #[derive(Debug, Serialize)]
 pub struct ErrorDetail {
     /// Human-readable error message.
@@ -20,9 +20,6 @@ pub struct ErrorDetail {
     /// Error type identifier.
     #[serde(rename = "type")]
     pub error_type: String,
-    /// Optional error code.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub code: Option<String>,
 }
 
 impl ErrorResponse {
@@ -32,7 +29,6 @@ impl ErrorResponse {
             error: ErrorDetail {
                 message: message.to_string(),
                 error_type: "internal_error".into(),
-                code: None,
             },
         }
     }
@@ -43,7 +39,6 @@ impl ErrorResponse {
             error: ErrorDetail {
                 message: message.to_string(),
                 error_type: "invalid_request_error".into(),
-                code: None,
             },
         }
     }

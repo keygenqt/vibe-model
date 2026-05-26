@@ -17,18 +17,9 @@ pub struct ChatCompletionRequest {
     /// Available tools for function calling.
     #[serde(default)]
     pub tools: Option<Vec<ToolRequest>>,
-    /// Tool choice mode.
-    #[serde(default)]
-    pub tool_choice: Option<String>,
     /// Whether to stream the response.
     #[serde(default)]
     pub stream: Option<bool>,
-    /// Sampling temperature.
-    #[serde(default)]
-    pub temperature: Option<f32>,
-    /// Maximum tokens to generate.
-    #[serde(default)]
-    pub max_tokens: Option<u32>,
 }
 
 impl ChatCompletionRequest {

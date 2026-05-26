@@ -12,6 +12,7 @@ use crate::cli::serve::ServeAction;
 use crate::configs::app::AppConfig;
 
 mod cli;
+mod clients;
 mod configs;
 mod pipeline;
 mod providers;

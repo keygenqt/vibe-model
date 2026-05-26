@@ -4,6 +4,8 @@ use serde::Deserialize;
 use serde::Serialize;
 
 /// Available tool definition.
+/// @todo - Used by SystemAction to execute tools directly.
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Clone)]
 pub struct ToolRequest {
     /// Function definition.
@@ -11,7 +13,9 @@ pub struct ToolRequest {
 }
 
 /// Function definition for a tool.
+/// @todo - Parsed from client request, executed by SystemAction.
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct FunctionDefRequest {
     /// Function name.
     pub name: String,

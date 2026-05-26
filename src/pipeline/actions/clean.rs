@@ -5,25 +5,56 @@ use anyhow::Result;
 use regex::Regex;
 
 use crate::pipeline::action::PipelineAction;
-use crate::pipeline::actions::cluster::ClusterAction;
+use crate::pipeline::actions::complexity::ComplexityType;
 use crate::pipeline::context::PipelineContext;
 use crate::providers::agents::AgentType;
+
+/// Clean action result.
+#[derive(Debug, Clone)]
+pub struct CleanActionContext {
+    /// Cleaned prompt text.
+    pub prompt: String,
+}
 
 /// Cleans agent-specific garbage from prompt.
 pub struct CleanAction;
 
 #[async_trait::async_trait]
 impl PipelineAction for CleanAction {
+    /// Action name for logging.
     fn name(&self) -> &'static str {
         "Clean"
     }
 
-    async fn execute(&self, ctx: &mut PipelineContext) -> Result<Vec<Box<dyn PipelineAction>>> {
-        if ctx.agent == AgentType::Cline {
-            ctx.prompt = clean_cline_prompt(&ctx.prompt);
+    /// Whether this action should run given current context.
+    fn enabled(&self, ctx: &PipelineContext) -> bool {
+        ctx.cache_action.is_none() && ctx.system_action.is_none()
+    }
+
+    /// Execute action.
+    async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
+        // Disable clean for low complexity
+        if let Some(complexity_action) = &ctx.complexity_action {
+            if complexity_action.complexity == ComplexityType::Low {
+                ctx.clean_action = Some(CleanActionContext {
+                    prompt: ctx.prompt_raw.clone(),
+                });
+                return Ok(());
+            }
         }
-        // Next: send to cluster
-        Ok(vec![Box::new(ClusterAction)])
+
+        // Action
+        let prompt = if ctx.agent == AgentType::Cline {
+            clean_cline_prompt(&ctx.prompt_raw)
+        } else {
+            ctx.prompt_raw.clone()
+        };
+
+        // Store clean result
+        ctx.clean_action = Some(CleanActionContext { prompt });
+
+        // Action completed, returning to pipeline
+        Ok(())
     }
 }
 

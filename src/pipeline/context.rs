@@ -5,50 +5,98 @@ use anyhow::Result;
 use vibe_cluster::{Cluster, ConnectionParams, Provider};
 
 use crate::configs::app::AppConfig;
-use crate::pipeline::actions::complexity::ComplexityType;
-use crate::pipeline::actions::species::SpeciesType;
+use crate::pipeline::actions::cache::CacheActionContext;
+use crate::pipeline::actions::clean::CleanActionContext;
+use crate::pipeline::actions::cluster::ClusterActionContext;
+use crate::pipeline::actions::complexity::ComplexityActionContext;
+use crate::pipeline::actions::format::FormatActionContext;
+use crate::pipeline::actions::species::SpeciesActionContext;
+use crate::pipeline::actions::system::SystemActionContext;
 use crate::providers::agents::AgentType;
-use crate::providers::openai::response::stream::ChatCompletionChunkResponse;
 
 /// Pipeline execution context.
+#[derive(Debug, Clone)]
 pub struct PipelineContext {
     /// Application config.
     pub config: AppConfig,
     /// Detected AI agent type.
     pub agent: AgentType,
     /// Current prompt text.
-    pub prompt: String,
-    /// Cluster for model calls.
-    pub cluster: Cluster,
-    /// Evaluated prompt complexity.
-    pub complexity: Option<ComplexityType>,
-    /// Detected prompt species/type.
-    pub species: Option<SpeciesType>,
-    /// Response text from model.
-    pub response: Option<String>,
-    /// Stream chunks for streaming responses.
-    pub stream_chunks: Option<Vec<ChatCompletionChunkResponse>>,
+    pub prompt_raw: String,
+    /// Cache action context.
+    pub cache_action: Option<CacheActionContext>,
+    /// Clean action context.
+    pub clean_action: Option<CleanActionContext>,
+    /// Cluster action context.
+    pub cluster_action: Option<ClusterActionContext>,
+    /// Complexity action context.
+    pub complexity_action: Option<ComplexityActionContext>,
+    /// Format action context.
+    pub format_action: Option<FormatActionContext>,
+    /// Species action context.
+    pub species_action: Option<SpeciesActionContext>,
+    /// System action context.
+    pub system_action: Option<SystemActionContext>,
 }
 
 impl PipelineContext {
     /// Create new pipeline context.
     pub fn new(agent: AgentType, config: AppConfig, prompt: String) -> Result<Self> {
-        let cluster = Self::create_cluster(&config)?;
         Ok(Self {
             agent,
             config,
-            cluster,
-            prompt,
-            response: None,
-            complexity: None,
-            species: None,
-            stream_chunks: None,
+            prompt_raw: prompt,
+            cache_action: None,
+            clean_action: None,
+            cluster_action: None,
+            complexity_action: None,
+            format_action: None,
+            species_action: None,
+            system_action: None,
         })
     }
 
+    /// Get cleaned preview of prompt for logging.
+    pub fn get_preview(&self) -> String {
+        // Extract text between <task> tags
+        if let Some(start) = self.prompt_raw.find("<task>") {
+            if let Some(end) = self.prompt_raw.find("</task>") {
+                return self.prompt_raw[start + 6..end].trim().to_string();
+            }
+        }
+        // Extract text between <feedback> tags
+        if let Some(start) = self.prompt_raw.find("<feedback>") {
+            if let Some(end) = self.prompt_raw.find("</feedback>") {
+                return self.prompt_raw[start + 10..end].trim().to_string();
+            }
+        }
+        // Fallback
+        let cleaned = self
+            .prompt_raw
+            .replace('\n', " ")
+            .replace('\r', " ")
+            .replace("  ", " ");
+        cleaned[..cleaned.len().min(100)].trim().to_string()
+    }
+
+    /// Get response from any action that produced one (cache, system, or cluster).
+    pub fn get_response(&self) -> Result<String> {
+        if let Some(cache_ctx) = &self.cache_action {
+            return Ok(cache_ctx.response.clone());
+        }
+        if let Some(system_ctx) = &self.system_action {
+            return Ok(system_ctx.response.clone());
+        }
+        if let Some(cluster_ctx) = &self.cluster_action {
+            return Ok(cluster_ctx.response.clone());
+        }
+        Err(anyhow::anyhow!("No response available"))
+    }
+
     /// Create vibe-cluster from config.
-    fn create_cluster(config: &AppConfig) -> Result<Cluster> {
-        let connections: Vec<ConnectionParams> = config
+    pub fn create_cluster(&self) -> Result<Cluster> {
+        let connections: Vec<ConnectionParams> = self
+            .config
             .cluster
             .iter()
             .map(|c| {

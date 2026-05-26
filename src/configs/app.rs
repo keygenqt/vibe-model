@@ -150,9 +150,6 @@ impl AppConfig {
                     "Model presentation settings for /v1/models endpoint",
                     "",
                     "id - Model identifier shown to clients",
-                    "context_window - Maximum context window in tokens",
-                    "max_tokens - Maximum output tokens",
-                    "capabilities - Model capabilities (code, reasoning, tools, multilingual)",
                 ],
             ),
             Json5::Commit(

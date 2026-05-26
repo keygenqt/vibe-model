@@ -11,12 +11,11 @@ use axum::response::IntoResponse;
 use axum::response::sse::{Event, Sse};
 use tokio_stream::StreamExt;
 
-use crate::pipeline::actions::complexity::ComplexityAction;
 use crate::pipeline::context::PipelineContext;
 use crate::pipeline::pipeline::Pipeline;
 use crate::providers::agents::AgentType;
+use crate::providers::openai::error::ErrorResponse;
 use crate::providers::openai::request::chat::ChatCompletionRequest;
-use crate::providers::openai::response::error::ErrorResponse;
 
 /// Handle chat completions request.
 pub async fn post(
@@ -63,7 +62,7 @@ pub async fn post(
         }
     };
 
-    if let Err(e) = pipeline.execute(Box::new(ComplexityAction), &mut ctx).await {
+    if let Err(e) = pipeline.execute(&mut ctx).await {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::internal(&e.to_string())),
@@ -72,32 +71,29 @@ pub async fn post(
     }
 
     if request.stream == Some(true) {
-        // Stream response
-        let chunks = ctx.stream_chunks.unwrap_or_default();
+        // Stream response — formatter already returns SSE string
+        let sse_data = ctx
+            .format_action
+            .as_ref()
+            .and_then(|f| f.stream_chunks.clone())
+            .unwrap_or_default();
+
+        // Parse JSON array of chunks and send as SSE
+        let chunks: Vec<serde_json::Value> = serde_json::from_str(&sse_data).unwrap_or_default();
         let stream = tokio_stream::iter(chunks).map(|chunk| -> Result<Event, Infallible> {
             Ok(Event::default().json_data(chunk).unwrap())
         });
         Sse::new(stream).into_response()
     } else {
-        // Sync response
-        let response = ctx.response.unwrap_or_default();
-        Json(serde_json::json!({
-            "object": "chat.completion",
-            "model": request.model,
-            "choices": [{
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": response
-                },
-                "finish_reason": "stop"
-            }],
-            "usage": {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0
-            }
-        }))
-        .into_response()
+        // Sync response — formatter already returns JSON string
+        let response = ctx
+            .format_action
+            .as_ref()
+            .and_then(|f| f.response.clone())
+            .unwrap_or_default();
+
+        // Parse formatter JSON and return as response
+        let json: serde_json::Value = serde_json::from_str(&response).unwrap_or_default();
+        Json(json).into_response()
     }
 }

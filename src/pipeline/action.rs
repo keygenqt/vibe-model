@@ -5,12 +5,13 @@ use anyhow::Result;
 
 use crate::pipeline::context::PipelineContext;
 
-/// Pipeline action — processes context and returns next actions.
-/// Empty vec means pipeline is done.
+/// Pipeline action — processes context.
 #[async_trait::async_trait]
 pub trait PipelineAction: Send + Sync {
     /// Action name for logging.
     fn name(&self) -> &'static str;
-    /// Execute action and return next actions to run.
-    async fn execute(&self, ctx: &mut PipelineContext) -> Result<Vec<Box<dyn PipelineAction>>>;
+    /// Whether this action should run given current context.
+    fn enabled(&self, _ctx: &PipelineContext) -> bool;
+    /// Execute action.
+    async fn execute(&self, ctx: &mut PipelineContext) -> Result<()>;
 }

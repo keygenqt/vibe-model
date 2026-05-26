@@ -3,9 +3,7 @@
 
 use anyhow::Result;
 
-use crate::pipeline::action::PipelineAction;
-use crate::pipeline::actions::clean::CleanAction;
-use crate::pipeline::context::PipelineContext;
+use crate::pipeline::{action::PipelineAction, context::PipelineContext};
 
 /// Prompt species/type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,19 +18,46 @@ pub enum SpeciesType {
     Context,
 }
 
+/// Species action result.
+#[derive(Debug, Clone)]
+pub struct SpeciesActionContext {
+    /// Detected prompt species/type.
+    pub species: SpeciesType,
+}
+
 /// Determines prompt type.
 pub struct SpeciesAction;
 
 #[async_trait::async_trait]
 impl PipelineAction for SpeciesAction {
+    /// Action name for logging.
     fn name(&self) -> &'static str {
         "Species"
     }
 
-    async fn execute(&self, ctx: &mut PipelineContext) -> Result<Vec<Box<dyn PipelineAction>>> {
-        // @todo: real species detection
-        ctx.species = Some(SpeciesType::Question);
-        // Next: clean prompt based on agent
-        Ok(vec![Box::new(CleanAction)])
+    /// Whether this action should run given current context.
+    fn enabled(&self, ctx: &PipelineContext) -> bool {
+        ctx.cache_action.is_none()
+    }
+
+    /// Execute action.
+    async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
+        let prompt = &&ctx.prompt_raw.to_lowercase();
+
+        let species = if prompt.contains("[s]") || prompt.contains("сколько время") {
+            SpeciesType::System
+        } else if prompt.contains("[f]") {
+            SpeciesType::Code
+        } else if prompt.contains("[q]") {
+            SpeciesType::Question
+        } else {
+            SpeciesType::Context
+        };
+
+        // Store species result
+        ctx.species_action = Some(SpeciesActionContext { species });
+
+        // Action completed, returning to pipeline
+        Ok(())
     }
 }
