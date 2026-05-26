@@ -24,22 +24,21 @@ impl PipelineAction for SystemAction {
         "System"
     }
 
+    /// Whether this action should run given current context.
     fn enabled(&self, ctx: &PipelineContext) -> bool {
-        ctx.cache_action.is_none()
+        ctx.species_action
+            .as_ref()
+            .map(|a| a.species == SpeciesType::System)
+            .unwrap_or(false)
     }
 
+    /// Execute action.
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
-        if let Some(species_ctx) = &ctx.species_action {
-            if species_ctx.species == SpeciesType::System {
-                if ctx.prompt_raw.to_lowercase().contains("сколько время") {
-                    ctx.system_action = Some(SystemActionContext {
-                        response: get_time(),
-                    });
-                }
-            }
+        if ctx.prompt_raw.to_lowercase().contains("сколько время") {
+            ctx.system_action = Some(SystemActionContext {
+                response: get_time(),
+            });
         }
-
-        // Action completed, returning to pipeline
         Ok(())
     }
 }
