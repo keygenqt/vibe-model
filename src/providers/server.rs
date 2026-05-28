@@ -48,7 +48,11 @@ impl ProviderServer {
         let addr = format!("{}:{}", self.host, self.port);
         let listener = tokio::net::TcpListener::bind(&addr).await?;
 
-        print_info!("{} server started on http://{}", self.provider.name(), addr);
+        print_info!(
+            "{} server started on http://{}",
+            self.provider.key().name(),
+            addr
+        );
 
         let app = router
             .layer(CorsLayer::permissive())

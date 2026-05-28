@@ -9,8 +9,24 @@ use crate::pipeline::pipeline::Pipeline;
 
 /// API provider — creates HTTP router for a specific API type.
 pub trait Provider: Send + Sync {
-    /// Build axum router with pipeline.
+    /// Provider type identifier.
+    fn key(&self) -> ProviderType;
+    /// Build axum router.
     fn router(&self, pipeline: Arc<Pipeline>) -> Router;
-    /// Provider name for logging and config.
-    fn name(&self) -> &'static str;
+}
+
+/// Supported API provider types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderType {
+    /// OpenAI-compatible API.
+    Openai,
+}
+
+impl ProviderType {
+    /// Human-readable provider name.
+    pub fn name(&self) -> &'static str {
+        match self {
+            ProviderType::Openai => "OpenAI",
+        }
+    }
 }

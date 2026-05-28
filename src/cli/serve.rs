@@ -50,7 +50,7 @@ pub async fn run(action: ServeAction) {
             serve.save().ok();
 
             let provider: Box<dyn Provider> = Box::new(OpenAiProvider);
-            let pipeline = Arc::new(Pipeline::new(config.clone()));
+            let pipeline = Arc::new(Pipeline::new(config.clone(), provider.key()));
             let server = ProviderServer::new(provider, pipeline, host.clone(), port);
 
             if let Err(e) = server.run().await {

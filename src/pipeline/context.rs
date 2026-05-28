@@ -6,13 +6,14 @@ use vibe_cluster::{Cluster, ConnectionParams, Provider};
 
 use crate::configs::app::AppConfig;
 use crate::pipeline::actions::cache::CacheActionContext;
-use crate::pipeline::actions::clean::CleanActionContext;
 use crate::pipeline::actions::cluster::ClusterActionContext;
 use crate::pipeline::actions::complexity::ComplexityActionContext;
 use crate::pipeline::actions::format::FormatActionContext;
+use crate::pipeline::actions::parser::ParseActionContext;
 use crate::pipeline::actions::species::SpeciesActionContext;
 use crate::pipeline::actions::system::SystemActionContext;
 use crate::providers::agents::AgentType;
+use crate::providers::provider::ProviderType;
 
 /// Pipeline execution context.
 #[derive(Debug, Clone)]
@@ -21,18 +22,20 @@ pub struct PipelineContext {
     pub config: AppConfig,
     /// Detected AI agent type.
     pub agent: AgentType,
+    /// API provider type.
+    pub provider: ProviderType,
     /// Current prompt text.
     pub prompt_raw: String,
     /// Cache action context.
     pub cache_action: Option<CacheActionContext>,
-    /// Clean action context.
-    pub clean_action: Option<CleanActionContext>,
     /// Cluster action context.
     pub cluster_action: Option<ClusterActionContext>,
     /// Complexity action context.
     pub complexity_action: Option<ComplexityActionContext>,
     /// Format action context.
     pub format_action: Option<FormatActionContext>,
+    /// Parse action context.
+    pub parse_action: Option<ParseActionContext>,
     /// Species action context.
     pub species_action: Option<SpeciesActionContext>,
     /// System action context.
@@ -41,16 +44,22 @@ pub struct PipelineContext {
 
 impl PipelineContext {
     /// Create new pipeline context.
-    pub fn new(agent: AgentType, config: AppConfig, prompt: String) -> Result<Self> {
+    pub fn new(
+        config: AppConfig,
+        agent: AgentType,
+        provider: ProviderType,
+        prompt: String,
+    ) -> Result<Self> {
         Ok(Self {
-            agent,
             config,
+            agent,
+            provider,
             prompt_raw: prompt,
             cache_action: None,
-            clean_action: None,
             cluster_action: None,
             complexity_action: None,
             format_action: None,
+            parse_action: None,
             species_action: None,
             system_action: None,
         })

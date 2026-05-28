@@ -1,13 +1,13 @@
 //! Common text client formatter.
 //! Formats responses as plain text for generic clients.
 
-use crate::clients::formatter::ClientFormatter;
+use crate::{clients::formatter::ClientFormatter, pipeline::context::PipelineContext};
 
 /// Text client formatter.
 pub struct OpenAIFormatter;
 
 impl ClientFormatter for OpenAIFormatter {
-    fn format_sync(&self, response: &str) -> String {
+    fn format_sync(&self, _ctx: &PipelineContext, response: &str) -> String {
         serde_json::to_string(&serde_json::json!({
             "id": format!("chatcmpl-{}", uuid::Uuid::new_v4()),
             "object": "chat.completion",
@@ -28,7 +28,7 @@ impl ClientFormatter for OpenAIFormatter {
         .unwrap_or_else(|_| response.to_string())
     }
 
-    fn format_stream(&self, response: &str) -> String {
+    fn format_stream(&self, _ctx: &PipelineContext, response: &str) -> String {
         let id = format!("chatcmpl-{}", uuid::Uuid::new_v4());
         let created = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

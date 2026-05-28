@@ -5,6 +5,7 @@ use anyhow::Result;
 
 use vibe_cluster::Prompt;
 
+use crate::models::prompt::PromptMode;
 use crate::pipeline::action::PipelineAction;
 use crate::pipeline::context::PipelineContext;
 
@@ -32,11 +33,27 @@ impl PipelineAction for ClusterAction {
 
     /// Execute action.
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
+        // @todo
+        // if let Some(data) = &ctx.parse_action {
+        //     println!("3 ==============");
+        //     println!("{:?}", data);
+        // }
+
+        if let Some(data) = &ctx.parse_action {
+            if data.data.mode == PromptMode::Service {
+                // Store cluster result
+                ctx.cluster_action = Some(ClusterActionContext {
+                    response: "Задача успешно выполнена. Что делаем дальше?".to_string(),
+                });
+                return Ok(());
+            }
+        }
+
         // Get clean or raw prompt
         let prompt = ctx
-            .clean_action
+            .parse_action
             .as_ref()
-            .map(|c| c.prompt.clone())
+            .map(|c| c.data.make_prompt())
             .unwrap_or_else(|| ctx.prompt_raw.clone());
 
         // Send prompt to cluster
@@ -47,6 +64,10 @@ impl PipelineAction for ClusterAction {
             .map_err(|e| anyhow::anyhow!(e.to_string()))?
             .text
             .ok_or_else(|| anyhow::anyhow!("Empty response from cluster"))?;
+
+        // @todo
+        // println!("4 ==============");
+        // println!("{:?}", response);
 
         // Store cluster result
         ctx.cluster_action = Some(ClusterActionContext { response });

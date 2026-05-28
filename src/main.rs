@@ -14,6 +14,7 @@ use crate::configs::app::AppConfig;
 mod cli;
 mod clients;
 mod configs;
+mod models;
 mod pipeline;
 mod providers;
 mod utils;

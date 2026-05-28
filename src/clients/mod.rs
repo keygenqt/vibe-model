@@ -3,3 +3,4 @@
 
 pub mod cline;
 pub mod formatter;
+pub mod parser;

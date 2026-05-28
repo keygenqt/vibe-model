@@ -3,12 +3,13 @@
 
 use anyhow::Result;
 
-use crate::clients::cline::formatter::ClineFormatter;
+use crate::clients::cline::formatter::openai::ClineFormatterOpenAI;
 use crate::clients::formatter::ClientFormatter;
 use crate::pipeline::action::PipelineAction;
 use crate::pipeline::context::PipelineContext;
 use crate::providers::agents::AgentType;
 use crate::providers::openai::formatter::OpenAIFormatter;
+use crate::providers::provider::ProviderType;
 
 /// Format action result.
 #[derive(Debug, Clone)]
@@ -40,15 +41,17 @@ impl PipelineAction for FormatAction {
         let response = ctx.get_response()?;
 
         // Select formatter by agent type
-        let formatter: Box<dyn ClientFormatter> = match ctx.agent {
-            AgentType::Cline => Box::new(ClineFormatter),
-            _ => Box::new(OpenAIFormatter),
+        let formatter: Box<dyn ClientFormatter> = match ctx.provider {
+            ProviderType::Openai => match ctx.agent {
+                AgentType::Cline => Box::new(ClineFormatterOpenAI),
+                _ => Box::new(OpenAIFormatter),
+            },
         };
 
         // Format and store
         ctx.format_action = Some(FormatActionContext {
-            response: Some(formatter.format_sync(&response)),
-            stream_chunks: Some(formatter.format_stream(&response)),
+            response: Some(formatter.format_sync(ctx, &response)),
+            stream_chunks: Some(formatter.format_stream(ctx, &response)),
         });
 
         // Formatting completed

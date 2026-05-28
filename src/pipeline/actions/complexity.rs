@@ -18,6 +18,7 @@ pub enum ComplexityType {
 }
 
 /// Complexity action result.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ComplexityActionContext {
     /// Evaluated prompt complexity.
@@ -43,9 +44,9 @@ impl PipelineAction for ComplexityAction {
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
         // Get clean or raw prompt
         let prompt = ctx
-            .clean_action
+            .parse_action
             .as_ref()
-            .map(|c| c.prompt.clone())
+            .map(|c| c.data.make_prompt().clone())
             .unwrap_or_else(|| ctx.prompt_raw.clone());
 
         let complexity = if prompt.len() < 200 {

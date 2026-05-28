@@ -51,7 +51,12 @@ pub async fn post(
         request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
     );
 
-    let mut ctx = match PipelineContext::new(agent, pipeline.config().clone(), prompt) {
+    let mut ctx = match PipelineContext::new(
+        pipeline.config().clone(),
+        agent,
+        pipeline.provider().clone(),
+        prompt,
+    ) {
         Ok(ctx) => ctx,
         Err(e) => {
             return (

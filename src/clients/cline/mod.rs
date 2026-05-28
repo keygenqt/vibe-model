@@ -1,4 +1,5 @@
 //! Cline client module.
-//! Response formatting for Cline AI.
+//! Response and request formatting for Cline AI.
 
 pub mod formatter;
+pub mod parser;
