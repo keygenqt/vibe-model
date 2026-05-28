@@ -69,6 +69,10 @@ impl PipelineAction for ClusterAction {
         // println!("4 ==============");
         // println!("{:?}", response);
 
+        let response = response
+            .trim_matches(|c: char| c == '-' || c.is_whitespace())
+            .to_string();
+
         // Store cluster result
         ctx.cluster_action = Some(ClusterActionContext { response });
 
