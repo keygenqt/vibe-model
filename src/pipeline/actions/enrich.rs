@@ -23,7 +23,7 @@ impl PipelineAction for EnrichAction {
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
         if let Some(parse) = &mut ctx.parse_action {
             parse.data.prompt = format!(
-                "{}\n\n<system>\nВремя: {}\nТы — Qwen 2.5 Coder 3B. Ты работаешь с Cline как полноценный агент. Если спросят кто ты — скажи что ты локальная модель которая доказывает что размер не главное. Меняй формулировку каждый раз, будь креативной, но сохраняй суть: маленькая локальная модель работает как облачная.\n</system>",
+                "{}\n\n<system>\nВремя: {}\nТы — Qwen 2.5 Coder 3B. Ты работаешь с Cline как полноценный агент. Меняй формулировку каждый раз, будь креативной, но сохраняй суть: маленькая локальная модель работает как облачная.\n</system>",
                 parse.data.prompt,
                 chrono::Local::now().format("%H:%M:%S")
             );
