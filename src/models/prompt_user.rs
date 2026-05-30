@@ -57,9 +57,17 @@ impl PromptUserModel {
 
     /// Build prompt with file contents appended.
     fn make_prompt_with_files(&self) -> String {
-        let mut prompt = self.prompt.clone();
-        for file in &self.files {
-            prompt.push_str(&format!("\n\n--- {} ---\n{}", file.path, file.content));
+        let mut prompt = self.prompt.trim().to_string();
+        if !self.files.is_empty() {
+            prompt.push_str("\n<files>");
+            for file in &self.files {
+                prompt.push_str(&format!(
+                    "\n<file path=\"{}\">\n{}\n</file>",
+                    file.path,
+                    file.content.trim()
+                ));
+            }
+            prompt.push_str("\n</files>");
         }
         prompt
     }

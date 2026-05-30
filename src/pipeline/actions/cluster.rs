@@ -38,30 +38,22 @@ impl PipelineAction for ClusterAction {
 
     /// Execute action.
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
-        if let Some(data) = &ctx.parse_action {
-            if data.user.mode == PromptUserMode::Service {
-                // Store cluster result
-                ctx.cluster_action = Some(ClusterActionContext {
-                    system_prompt: None,
-                    user_prompt: None,
-                    response: "Задача успешно выполнена. Что делаем дальше?".to_string(),
-                });
-                return Ok(());
-            }
-        }
-
         // Build system prompt from parsed system model.
         let system_prompt = ctx.parse_action.as_ref().and_then(|c| {
             c.system
                 .make_prompt(&[PromptField::Enrich, PromptField::Instructions])
         });
 
-        // Build user prompt from parsed user model.
-        let user_prompt = ctx
-            .parse_action
-            .as_ref()
-            .map(|c| c.user.make_prompt())
-            .unwrap_or_else(|| ctx.request.user_prompt().unwrap_or_default());
+        // Build user prompt from parsed user model or service completion.
+        let user_prompt = if let Some(data) = &ctx.parse_action {
+            if data.user.mode == PromptUserMode::Service {
+                "Task completed. Acknowledge briefly in your own words.".to_string()
+            } else {
+                data.user.make_prompt()
+            }
+        } else {
+            ctx.request.user_prompt().unwrap_or_default()
+        };
 
         // Send prompt to cluster
         let response = ctx

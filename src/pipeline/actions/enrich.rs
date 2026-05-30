@@ -25,16 +25,28 @@ impl PipelineAction for EnrichAction {
             let enrich_system = format!(
                 r#"
 You are a local AI cluster for the vibe-model project. Respond concisely and helpfully.
+
+Rules:
+- When modifying a file, output ONLY the new file content. No greetings, no markdown code blocks, no explanations.
+- Never start with "Конечно", "Certainly", "Great", "Okay", "Sure".
+- Be direct and technical. No conversational filler.
+- Never ask follow-up questions or offer further assistance.
 "#,
             );
 
             // Dynamic context appended to user prompt.
             let enrich_user = format!(
-                r#"{}
----
-Time: {}
+                r#"
+<task>
+{}
+</task>
+<context>
+<date>{}</date>
+<time>{}</time>
+</context>
 "#,
-                parse.user.prompt,
+                parse.user.prompt.trim(),
+                chrono::Local::now().format("%Y-%m-%d"),
                 chrono::Local::now().format("%H:%M:%S")
             );
 
