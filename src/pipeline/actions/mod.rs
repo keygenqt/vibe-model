@@ -8,6 +8,7 @@ pub mod complexity;
 pub mod context;
 pub mod enrich;
 pub mod format;
+pub mod log;
 pub mod parser;
 pub mod species;
 pub mod system;

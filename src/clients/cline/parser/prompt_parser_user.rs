@@ -2,24 +2,20 @@
 //! Extracts task, file content, and feedback from Cline prompts.
 
 use crate::{
-    clients::{cline::parser::models::PromptTagsModel, parser::ClientParser},
+    clients::{cline::parser::models::PromptTagsModel, parsers::PromptParserUser},
     models::{
         cline_context::ClineContextModel,
-        prompt::{PromptFile, PromptMode, PromptModel},
+        prompt_user::{PromptUserFile, PromptUserMode, PromptUserModel},
     },
     utils::parse,
 };
 
 /// Parses Cline-specific prompt format.
-pub struct ClineParser;
+pub struct ClinePromptParserUser;
 
-impl ClientParser for ClineParser {
+impl PromptParserUser for ClinePromptParserUser {
     /// Parse raw prompt into structured PromptModel.
-    fn parse(&self, prompt: &str) -> PromptModel {
-        // @todo
-        // println!("1 ==============");
-        // println!("{}", prompt);
-
+    fn parse(&self, prompt: &str) -> PromptUserModel {
         let known_tags = &[
             "task",
             "feedback",
@@ -38,7 +34,7 @@ impl ClientParser for ClineParser {
             Ok(data) => data,
             Err(e) => {
                 tracing::error!("JSON parse error: {:?}", e);
-                return PromptModel::new("Cline prompt parsing failed.");
+                return PromptUserModel::new("Cline prompt parsing failed.");
             }
         };
 
@@ -49,10 +45,10 @@ impl ClientParser for ClineParser {
         let prompt = tags.get_user_prompt(&context);
 
         // 5. Get files
-        let files: Vec<PromptFile> = tags
+        let files: Vec<PromptUserFile> = tags
             .file_content
             .into_iter()
-            .map(|f| PromptFile {
+            .map(|f| PromptUserFile {
                 path: f.path,
                 content: f.content,
             })
@@ -60,18 +56,18 @@ impl ClientParser for ClineParser {
 
         // 6. Determine prompt mode
         let mode = if tags.task.is_some() || tags.feedback.is_some() {
-            PromptMode::Task
+            PromptUserMode::Task
         } else if let Some(ctx) = &context {
             if ctx.contains("[write_to_file")
                 || ctx.contains("[attempt_completion]")
                 || ctx.contains("[ERROR]")
             {
-                PromptMode::Service
+                PromptUserMode::Service
             } else {
-                PromptMode::Task
+                PromptUserMode::Task
             }
         } else {
-            PromptMode::Unknown
+            PromptUserMode::Unknown
         };
 
         // 7. Build Cline context
@@ -82,7 +78,7 @@ impl ClientParser for ClineParser {
             workspace_diagnostics: tags.workspace_diagnostics,
         };
 
-        PromptModel {
+        PromptUserModel {
             prompt,
             mode,
             files,

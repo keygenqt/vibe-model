@@ -2,4 +2,5 @@
 //! Prompt parsing and data models.
 
 pub mod models;
-pub mod parser;
+pub mod prompt_parser_system;
+pub mod prompt_parser_user;

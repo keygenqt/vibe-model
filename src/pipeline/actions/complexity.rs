@@ -46,8 +46,8 @@ impl PipelineAction for ComplexityAction {
         let prompt = ctx
             .parse_action
             .as_ref()
-            .map(|c| c.data.make_prompt().clone())
-            .unwrap_or_else(|| ctx.prompt_raw.clone());
+            .map(|c| c.user.make_prompt())
+            .unwrap_or_else(|| ctx.request.user_prompt().unwrap_or_default());
 
         let complexity = if prompt.len() < 200 {
             ComplexityType::Low

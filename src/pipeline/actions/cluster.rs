@@ -5,13 +5,18 @@ use anyhow::Result;
 
 use vibe_cluster::Prompt;
 
-use crate::models::prompt::PromptMode;
+use crate::models::prompt_system::PromptField;
+use crate::models::prompt_user::PromptUserMode;
 use crate::pipeline::action::PipelineAction;
 use crate::pipeline::context::PipelineContext;
 
 /// Cluster action result.
 #[derive(Debug, Clone)]
 pub struct ClusterActionContext {
+    /// System prompt sent to cluster.
+    pub system_prompt: Option<String>,
+    /// User prompt sent to cluster.
+    pub user_prompt: Option<String>,
     /// Response text from cluster.
     pub response: String,
 }
@@ -33,48 +38,50 @@ impl PipelineAction for ClusterAction {
 
     /// Execute action.
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
-        // @todo
-        // if let Some(data) = &ctx.parse_action {
-        //     println!("3 ==============");
-        //     println!("{:?}", data);
-        // }
-
         if let Some(data) = &ctx.parse_action {
-            if data.data.mode == PromptMode::Service {
+            if data.user.mode == PromptUserMode::Service {
                 // Store cluster result
                 ctx.cluster_action = Some(ClusterActionContext {
+                    system_prompt: None,
+                    user_prompt: None,
                     response: "Задача успешно выполнена. Что делаем дальше?".to_string(),
                 });
                 return Ok(());
             }
         }
 
-        // Get clean or raw prompt
-        let prompt = ctx
+        // Build system prompt from parsed system model.
+        let system_prompt = ctx.parse_action.as_ref().and_then(|c| {
+            c.system
+                .make_prompt(&[PromptField::Enrich, PromptField::Instructions])
+        });
+
+        // Build user prompt from parsed user model.
+        let user_prompt = ctx
             .parse_action
             .as_ref()
-            .map(|c| c.data.make_prompt())
-            .unwrap_or_else(|| ctx.prompt_raw.clone());
+            .map(|c| c.user.make_prompt())
+            .unwrap_or_else(|| ctx.request.user_prompt().unwrap_or_default());
 
         // Send prompt to cluster
         let response = ctx
             .create_cluster()?
-            .call(Prompt::new(prompt))
+            .call(Prompt::new(&user_prompt, system_prompt.clone()))
             .await
             .map_err(|e| anyhow::anyhow!(e.to_string()))?
             .text
             .ok_or_else(|| anyhow::anyhow!("Empty response from cluster"))?;
-
-        // @todo
-        // println!("4 ==============");
-        // println!("{:?}", response);
 
         let response = response
             .trim_matches(|c: char| c == '-' || c.is_whitespace())
             .to_string();
 
         // Store cluster result
-        ctx.cluster_action = Some(ClusterActionContext { response });
+        ctx.cluster_action = Some(ClusterActionContext {
+            system_prompt: system_prompt,
+            user_prompt: Some(user_prompt),
+            response,
+        });
 
         // Action completed, returning to pipeline
         Ok(())

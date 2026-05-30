@@ -12,6 +12,7 @@ use crate::pipeline::actions::complexity::ComplexityAction;
 use crate::pipeline::actions::context::ContextAction;
 use crate::pipeline::actions::enrich::EnrichAction;
 use crate::pipeline::actions::format::FormatAction;
+use crate::pipeline::actions::log::LogAction;
 use crate::pipeline::actions::parser::ParseAction;
 use crate::pipeline::actions::species::SpeciesAction;
 use crate::pipeline::actions::system::SystemAction;
@@ -63,17 +64,17 @@ impl Pipeline {
             Box::new(ClusterAction),
             // Format response for specific agent
             Box::new(FormatAction),
+            // Log pipeline state for debugging
+            Box::new(LogAction),
         ]
     }
 
     /// Execute pipeline with starting action.
     pub async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
-        tracing::debug!("Prompt: {}...", ctx.get_preview());
         for action in self.list() {
             if action.enabled(ctx) {
                 tracing::debug!("Start: {}", action.name());
                 action.execute(ctx).await?;
-                tracing::trace!("Done, context: {:?}", ctx);
             }
         }
         Ok(())

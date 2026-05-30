@@ -3,7 +3,7 @@
 use serde::Deserialize;
 
 use crate::providers::openai::request::{
-    content::{ContentRequest, MessageRequest},
+    content::{MessageRequest, Role},
     tool::ToolRequest,
 };
 
@@ -22,22 +22,56 @@ pub struct ChatCompletionRequest {
     pub stream: Option<bool>,
 }
 
+#[allow(dead_code)]
 impl ChatCompletionRequest {
-    /// Extract prompt from last user message.
-    pub fn to_prompt(&self) -> String {
+    /// Get system prompt.
+    pub fn system_prompt(&self) -> Option<String> {
         self.messages
             .iter()
-            .filter(|m| m.role == "user")
-            .last()
-            .and_then(|m| m.content.as_ref())
-            .map(|c| match c {
-                ContentRequest::Text(text) => text.clone(),
-                ContentRequest::Parts(parts) => parts
-                    .iter()
-                    .filter_map(|p| p.text.clone())
-                    .collect::<Vec<_>>()
-                    .join("\n"),
+            .find(|m| m.role == Role::System)
+            .and_then(|m| m.content.as_ref().and_then(|c| c.as_text()))
+    }
+
+    /// Get conversation history (all messages except last user).
+    pub fn conversation_history(&self) -> Vec<(Role, String)> {
+        self.messages
+            .iter()
+            .filter_map(|m| {
+                Some((
+                    m.role.clone(),
+                    m.content.as_ref().and_then(|c| c.as_text())?,
+                ))
             })
-            .unwrap_or_default()
+            .collect()
+    }
+
+    /// Get last user message.
+    pub fn user_prompt(&self) -> Option<String> {
+        self.messages
+            .iter()
+            .filter(|m| m.role == Role::User)
+            .last()
+            .and_then(|m| m.content.as_ref().and_then(|c| c.as_text()))
+    }
+
+    /// Get tool call results.
+    pub fn tool_results(&self) -> Vec<(String, String)> {
+        self.messages
+            .iter()
+            .filter(|m| m.role == Role::Tool)
+            .filter_map(|m| {
+                let content = m.content.as_ref().and_then(|c| c.as_text())?;
+                let tool_call_id = m.tool_call_id.clone()?;
+                Some((tool_call_id, content))
+            })
+            .collect()
+    }
+
+    /// Get available tools.
+    pub fn available_tools(&self) -> Vec<String> {
+        self.tools
+            .iter()
+            .flat_map(|t| t.iter().map(|tool| tool.function.name.clone()))
+            .collect()
     }
 }

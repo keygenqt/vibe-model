@@ -42,7 +42,7 @@ impl PipelineAction for SpeciesAction {
 
     /// Execute action.
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
-        let prompt = &&ctx.prompt_raw.to_lowercase();
+        let prompt = ctx.request.user_prompt().unwrap_or_default().to_lowercase();
 
         let species = if prompt.contains("[s]") || prompt.contains("сколько время") {
             SpeciesType::System
@@ -54,10 +54,8 @@ impl PipelineAction for SpeciesAction {
             SpeciesType::Context
         };
 
-        // Store species result
         ctx.species_action = Some(SpeciesActionContext { species });
 
-        // Action completed, returning to pipeline
         Ok(())
     }
 }

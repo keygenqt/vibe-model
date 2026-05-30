@@ -5,11 +5,21 @@ use serde::Serialize;
 
 use crate::providers::openai::request::tool::ToolCallRequest;
 
+/// Message role.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
 /// Conversation message.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MessageRequest {
     /// Message role (system, user, assistant, tool).
-    pub role: String,
+    pub role: Role,
     /// Message content (string or array of content parts).
     pub content: Option<ContentRequest>,
     /// Tool calls from assistant.
@@ -49,4 +59,20 @@ pub struct ContentPartRequest {
 pub struct ImageUrlRequest {
     /// Image URL or base64-encoded data.
     pub url: String,
+}
+
+impl ContentRequest {
+    pub fn as_text(&self) -> Option<String> {
+        match self {
+            ContentRequest::Text(text) => Some(text.clone()),
+            ContentRequest::Parts(parts) => {
+                let text = parts
+                    .iter()
+                    .filter_map(|p| p.text.clone())
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if text.is_empty() { None } else { Some(text) }
+            }
+        }
+    }
 }

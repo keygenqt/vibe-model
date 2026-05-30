@@ -14,7 +14,7 @@ impl ClientFormatter for ClineFormatterOpenAI {
     fn format_stream(&self, ctx: &PipelineContext, response: &str) -> String {
         // Determine tool based on parsed data
         let (tool_name, tool_args) = if let Some(parse_ctx) = &ctx.parse_action {
-            if let Some(file) = parse_ctx.data.files.first() {
+            if let Some(file) = parse_ctx.user.files.first() {
                 // File modification task — suggest write_to_file
                 (
                     "write_to_file",

@@ -16,17 +16,32 @@ impl PipelineAction for EnrichAction {
     }
 
     fn enabled(&self, _ctx: &PipelineContext) -> bool {
-        // @todo: enable when enrichment logic is ready
         true
     }
 
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
         if let Some(parse) = &mut ctx.parse_action {
-            parse.data.prompt = format!(
-                "Инструкция (не отвечай на это сообщение, просто запомни):\nТы — Qwen 2.5 Coder 3B, локальная модель. Ты работаешь с Cline. Время: {}\n\nЗапрос:\n{}",
-                chrono::Local::now().format("%H:%M:%S"),
-                parse.data.prompt
+            // Static system identity for cluster.
+            let enrich_system = format!(
+                r#"
+You are a local AI cluster for the vibe-model project. Respond concisely and helpfully.
+"#,
             );
+
+            // Dynamic context appended to user prompt.
+            let enrich_user = format!(
+                r#"{}
+---
+Time: {}
+"#,
+                parse.user.prompt,
+                chrono::Local::now().format("%H:%M:%S")
+            );
+
+            // Add static system instructions.
+            parse.system.enrich = Some(enrich_system.trim().to_string());
+            // Add dynamic time to user prompt.
+            parse.user.prompt = enrich_user.trim().to_string();
         }
         Ok(())
     }

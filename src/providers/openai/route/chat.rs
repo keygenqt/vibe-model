@@ -40,8 +40,6 @@ pub async fn post(
             .into_response();
     }
 
-    let prompt = request.to_prompt();
-
     tracing::trace!(
         "Chat request: agent={:?}, model={}, messages={}, stream={:?}, tools={}",
         agent,
@@ -55,7 +53,7 @@ pub async fn post(
         pipeline.config().clone(),
         agent,
         pipeline.provider().clone(),
-        prompt,
+        &request,
     ) {
         Ok(ctx) => ctx,
         Err(e) => {

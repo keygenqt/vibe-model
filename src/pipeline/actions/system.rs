@@ -34,10 +34,12 @@ impl PipelineAction for SystemAction {
 
     /// Execute action.
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
-        if ctx.prompt_raw.to_lowercase().contains("сколько время") {
-            ctx.system_action = Some(SystemActionContext {
-                response: get_time(),
-            });
+        if let Some(prompt) = ctx.request.user_prompt() {
+            if prompt.to_lowercase().contains("сколько время") {
+                ctx.system_action = Some(SystemActionContext {
+                    response: get_time(),
+                });
+            }
         }
         Ok(())
     }

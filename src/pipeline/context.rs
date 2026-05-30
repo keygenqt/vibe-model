@@ -13,6 +13,7 @@ use crate::pipeline::actions::parser::ParseActionContext;
 use crate::pipeline::actions::species::SpeciesActionContext;
 use crate::pipeline::actions::system::SystemActionContext;
 use crate::providers::agents::AgentType;
+use crate::providers::openai::request::chat::ChatCompletionRequest;
 use crate::providers::provider::ProviderType;
 
 /// Pipeline execution context.
@@ -24,8 +25,8 @@ pub struct PipelineContext {
     pub agent: AgentType,
     /// API provider type.
     pub provider: ProviderType,
-    /// Current prompt text.
-    pub prompt_raw: String,
+    /// Full chat completion request.
+    pub request: ChatCompletionRequest,
     /// Cache action context.
     pub cache_action: Option<CacheActionContext>,
     /// Cluster action context.
@@ -48,13 +49,13 @@ impl PipelineContext {
         config: AppConfig,
         agent: AgentType,
         provider: ProviderType,
-        prompt: String,
+        request: &ChatCompletionRequest,
     ) -> Result<Self> {
         Ok(Self {
             config,
             agent,
             provider,
-            prompt_raw: prompt,
+            request: request.clone(),
             cache_action: None,
             cluster_action: None,
             complexity_action: None,
@@ -63,29 +64,6 @@ impl PipelineContext {
             species_action: None,
             system_action: None,
         })
-    }
-
-    /// Get cleaned preview of prompt for logging.
-    pub fn get_preview(&self) -> String {
-        // Extract text between <task> tags
-        if let Some(start) = self.prompt_raw.find("<task>") {
-            if let Some(end) = self.prompt_raw.find("</task>") {
-                return self.prompt_raw[start + 6..end].trim().to_string();
-            }
-        }
-        // Extract text between <feedback> tags
-        if let Some(start) = self.prompt_raw.find("<feedback>") {
-            if let Some(end) = self.prompt_raw.find("</feedback>") {
-                return self.prompt_raw[start + 10..end].trim().to_string();
-            }
-        }
-        // Fallback
-        let cleaned = self
-            .prompt_raw
-            .replace('\n', " ")
-            .replace('\r', " ")
-            .replace("  ", " ");
-        cleaned[..cleaned.len().min(100)].trim().to_string()
     }
 
     /// Get response from any action that produced one (cache, system, or cluster).

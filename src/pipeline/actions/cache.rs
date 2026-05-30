@@ -27,16 +27,15 @@ impl PipelineAction for CacheAction {
     }
 
     async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
-        // Action
-        if ctx.prompt_raw.to_lowercase().contains("что ты за модель") {
-            ctx.cache_action = Some(CacheActionContext {
+        if let Some(prompt) = ctx.request.user_prompt() {
+            if prompt.to_lowercase().contains("что ты за модель") {
+                ctx.cache_action = Some(CacheActionContext {
                 response: "Я — vibe-model, OpenAI-совместимое API, которое маршрутизирует запросы через кластер LLM. \
                           Под капотом — vibe-cluster с поддержкой Ollama, DeepSeek, Qwen. \
                           Выбираю лучшую модель под твою задачу.".to_string(),
             });
+            }
         }
-
-        // Action completed, returning to pipeline
         Ok(())
     }
 }
