@@ -1,14 +1,14 @@
-# Вибей Модель
+# Vibe Model
 
-Открытый доступный HTTP API для маршрутизации запросов по кластеру LLM.
+OpenAI-compatible HTTP API that routes prompts across a cluster of LLMs.
 
-## Почему
+## Why
 
-Запуск одного моделей быстро достигает лимитов. Один GPU, один модель, один запрос за раз.
-Когда у вас есть несколько машин с различными моделями, вы стесняетесь управлять подключениями, распределением и повторами самих.
-Облачные API решают масштабирование, но при этом ограничивают вас одним провайдером. Локальные модели дадут контроль, но отсутствует распределение.
-Один API, несколько провайдеров, нулевая нагрузка на координацию.
+Running a single model hits limits fast. One GPU, one model, one prompt at a time.
+When you have multiple machines with different models, you're stuck managing connections, load balancing, and retries yourself.
+Cloud APIs solve scaling but lock you into one provider. Local models give control but lack distribution.
+One API, multiple providers, zero coordination overhead.
 
-## Функции
+## Features
 
-- Маршрутизирует запросы к лучшей доступной модели в кластере
+- Routes prompts to the best available model in the cluster
