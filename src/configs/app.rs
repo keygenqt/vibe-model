@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 
 use crate::configs::cluster::ClusterConfig;
+use crate::configs::estimator::EstimatorConfig;
 use crate::configs::identity::IdentityConfig;
 use crate::configs::log_level::LogLevel;
 use crate::configs::server::ServerConfig;
@@ -32,6 +33,8 @@ pub struct AppConfig {
     pub server: ServerConfig,
     /// Model presentation settings for /v1/models endpoint.
     pub identity: IdentityConfig,
+    /// Complexity estimator configuration.
+    pub estimator: EstimatorConfig,
     /// LLM cluster nodes (local and cloud models).
     pub cluster: Vec<ClusterConfig>,
 }
@@ -44,6 +47,7 @@ impl Default for AppConfig {
             log_level: LogLevel::default(),
             server: ServerConfig::default(),
             identity: IdentityConfig::default(),
+            estimator: EstimatorConfig::default(),
             cluster: vec![ClusterConfig::default()],
         }
     }
@@ -153,14 +157,32 @@ impl AppConfig {
                 ],
             ),
             Json5::Commit(
+                "estimator",
+                vec![
+                    "Complexity estimator configuration.",
+                    "  CRITICAL ROLE: This model judges prompt difficulty (0.0-1.0) to route",
+                    "  requests to the right model. A smarter estimator gives more accurate",
+                    "  complexity scores, so use the most capable model you can afford.",
+                    "  Results are cached via semantic search — the estimator runs only when",
+                    "  a genuinely new prompt pattern is detected.",
+                    "",
+                    "provider - Provider type: ollama, deepseek, qwen",
+                    "host - API endpoint",
+                    "model - LLM model name",
+                    "parallel - Number of parallel connections (default 1)",
+                ],
+            ),
+            Json5::Commit(
                 "cluster",
                 vec![
-                    "LLM cluster nodes (local and cloud models)",
+                    "LLM cluster nodes (local and cloud models).",
                     "",
                     "provider - Provider type: ollama, deepseek, qwen",
                     "host - API endpoint",
                     "model - LLM model name",
                     "timeout_secs - Request timeout in seconds",
+                    "complexity_from - Lower bound of complexity range (0.0-1.0)",
+                    "complexity_to - Upper bound of complexity range (0.0-1.0)",
                     "temperature - Sampling temperature (0.0 - 1.0)",
                     "seed - Random seed for reproducibility",
                     "num_ctx - Context window size",
@@ -173,6 +195,38 @@ impl AppConfig {
         let json = json5::to_string(self)?;
         let content = utils::json5::add_commits(json, commits);
         fs::write(Self::config_path(), content)?;
+        Ok(())
+    }
+
+    /// Validate configuration and return errors for misconfigurations.
+    pub fn validate() -> Result<()> {
+        let config = AppConfig::load()?;
+
+        // Check at least one cluster node exists.
+        if config.cluster.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Cluster is empty. Add at least one LLM node to the cluster array."
+            ));
+        }
+
+        // Check complexity ranges cover 0-100 (representing 0.00-1.00).
+        let mut covered = [false; 101];
+        for node in &config.cluster {
+            let from = (node.complexity_from * 100.0).round() as usize;
+            let to = (node.complexity_to * 100.0).round() as usize;
+            let start = from.min(100);
+            let end = to.min(100);
+            for step in start..=end {
+                covered[step] = true;
+            }
+        }
+        if let Some(gap_index) = covered.iter().position(|&step_covered| !step_covered) {
+            return Err(anyhow::anyhow!(
+                "Complexity gap detected: step {:.2} is not covered by any model.",
+                gap_index as f32 / 100.0
+            ));
+        }
+
         Ok(())
     }
 }

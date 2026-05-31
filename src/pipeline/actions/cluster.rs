@@ -19,6 +19,8 @@ pub struct ClusterActionContext {
     pub user_prompt: Option<String>,
     /// Response text from cluster.
     pub response: String,
+    /// Models used for this request (by complexity routing).
+    pub models: Vec<String>,
 }
 
 /// Sends prompt to cluster and stores response.
@@ -55,9 +57,18 @@ impl PipelineAction for ClusterAction {
             ctx.request.user_prompt().unwrap_or_default()
         };
 
-        // Send prompt to cluster
-        let response = ctx
-            .create_cluster()?
+        // Get complexity score from estimator or fallback to 0.5.
+        let complexity = ctx
+            .complexity_action
+            .as_ref()
+            .map(|c| c.complexity)
+            .unwrap_or(0.5);
+
+        // Create cluster filtered by complexity score.
+        let cluster = ctx.create_cluster(complexity)?;
+
+        // Send prompt to cluster filtered by complexity
+        let response = cluster
             .call(Prompt::new(&user_prompt, system_prompt.clone()))
             .await
             .map_err(|e| anyhow::anyhow!(e.to_string()))?
@@ -73,6 +84,7 @@ impl PipelineAction for ClusterAction {
             system_prompt: system_prompt,
             user_prompt: Some(user_prompt),
             response,
+            models: cluster.models().await,
         });
 
         // Action completed, returning to pipeline

@@ -73,7 +73,7 @@ impl Pipeline {
     pub async fn execute(&self, ctx: &mut PipelineContext) -> Result<()> {
         for action in self.list() {
             if action.enabled(ctx) {
-                tracing::debug!("Start: {}", action.name());
+                tracing::trace!("Start: {}", action.name());
                 action.execute(ctx).await?;
             }
         }

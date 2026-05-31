@@ -80,12 +80,18 @@ impl PipelineContext {
         Err(anyhow::anyhow!("No response available"))
     }
 
-    /// Create vibe-cluster from config.
-    pub fn create_cluster(&self) -> Result<Cluster> {
+    /// Create vibe-cluster from config filtered by complexity score.
+    pub fn create_cluster(&self, complexity: f32) -> Result<Cluster> {
+        let comp_step = (complexity * 100.0).round() as usize;
         let connections: Vec<ConnectionParams> = self
             .config
             .cluster
             .iter()
+            .filter(|c| {
+                let from_step = (c.complexity_from * 100.0).round() as usize;
+                let to_step = (c.complexity_to * 100.0).round() as usize;
+                comp_step >= from_step && comp_step <= to_step
+            })
             .map(|c| {
                 let provider = match c.provider.as_str() {
                     "ollama" => Provider::Ollama,
@@ -108,6 +114,35 @@ impl PipelineContext {
             })
             .collect::<Result<Vec<_>>>()?;
 
+        if connections.is_empty() {
+            anyhow::bail!("No nodes found for complexity: {:.2}", complexity);
+        }
+
         Cluster::new(connections).map_err(|e| anyhow::anyhow!(e.to_string()))
+    }
+
+    /// Create estimator from config.
+    pub fn create_estimator(&self) -> Result<Cluster> {
+        let provider = match self.config.estimator.provider.as_str() {
+            "ollama" => Provider::Ollama,
+            "deepseek" => Provider::DeepSeek,
+            "qwen" => Provider::Qwen,
+            other => anyhow::bail!("Unknown provider: {}", other),
+        };
+
+        let connection = ConnectionParams {
+            provider,
+            host: self.config.estimator.host.clone(),
+            model: self.config.estimator.model.clone(),
+            temperature: Some(0.0), // hardcoded for estimator
+            seed: Some(42),
+            num_ctx: Some(2048),
+            num_predict: Some(10),
+            timeout_secs: Some(30),
+            api_key: None,
+            parallel: self.config.estimator.parallel,
+        };
+
+        Cluster::new(vec![connection]).map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 }

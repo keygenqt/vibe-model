@@ -15,6 +15,10 @@ pub struct ClusterConfig {
     pub model: String,
     /// Request timeout in seconds.
     pub timeout_secs: u64,
+    /// Lower bound of complexity range (0.0-1.0), inclusive.
+    pub complexity_from: f32,
+    /// Upper bound of complexity range (0.0-1.0), inclusive.
+    pub complexity_to: f32,
     /// Temperature for generation (0.0-2.0, lower = more deterministic).
     pub temperature: f32,
     /// Seed for reproducible outputs.
@@ -37,6 +41,8 @@ impl Default for ClusterConfig {
             provider: "ollama".to_string(),
             host: "http://localhost:11434".to_string(),
             model: "qwen2.5-coder:3b-instruct".to_string(),
+            complexity_from: 0.0,
+            complexity_to: 1.0,
             timeout_secs: 60,
             temperature: 0.1,
             seed: 42,

@@ -55,6 +55,11 @@ async fn main() {
     // Load config with override
     AppConfig::set_global_config(app.config.clone());
 
+    // Validate config
+    if let Err(error) = AppConfig::validate() {
+        exit_error!("{}", error);
+    }
+
     match app.command {
         Some(Commands::Serve { action }) => cli::serve::run(action).await,
         Some(Commands::Ping { action }) => cli::ping::run(action).await,

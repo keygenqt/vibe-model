@@ -22,8 +22,8 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["cors", "normalize-path"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-vibe-cluster = "0.0.3"
-# vibe-cluster = { path = "/Users/keygenqt/Documents/Gitcode/Projects/vibe-cluster" }
+# vibe-cluster = "0.0.3"
+vibe-cluster = { path = "/Users/keygenqt/Documents/Gitcode/Projects/vibe-cluster" }
 rusqlite = "0.39.0"
 dirs = "6"
 uuid = { version = "1", features = ["v4"] }
